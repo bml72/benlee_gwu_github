@@ -1,0 +1,559 @@
+---
+title: "Project One: Wasted Potential"
+author: "Sneha, RyeAnne, Ben, Yuqi"
+date: "11 March 2020"
+output:
+  html_document:
+    code_folding: hide
+    # number_sections: true
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+---
+
+```{r setup, include=FALSE}
+# some of common options (and the defaults) are: 
+# include=T, eval=T, echo=T, results='hide'/'asis',..., collapse=F, warning=T, message=T, error=T, cache=T, fig.width=6, fig.height=4, fig.dim=c(6,4) #inches, fig.align='left'/'center','right', 
+# knitr::opts_chunk$set(warning = F, results = T, message = F)
+knitr::opts_chunk$set(warning = F, results = F, message = F)
+# knitr::opts_chunk$set(include = F)
+# knitr::opts_chunk$set(echo = TRUE)
+options(scientific=T, digits = 3) 
+# options(scipen=9, digits = 3) 
+# ‘scipen’: integer. A penalty to be applied when deciding to print numeric values in fixed or exponential notation.  Positive values bias towards fixed and negative towards scientific notation: fixed notation will be preferred unless it is more than ‘scipen’ digits wider.
+# use scipen=999 to prevent scientific notation at all times
+```
+
+```{r basicfcn, include=F}
+# use this function to conveniently load libraries and work smoothly with knitting
+# can add quietly=T option to the require() function
+# note that using this function requires quotes around the package name, as you would when installing packages.
+loadPkg = function(x) { if (!require(x,character.only=T, quietly =T)) { install.packages(x,dep=T,repos="http://cran.us.r-project.org"); if(!require(x,character.only=T)) stop("Package not found") } }
+# unload/detact package when done using it 
+detach_package = function(pkg, character.only = FALSE) { if(!character.only) { pkg <- deparse(substitute(pkg)) } 
+  search_item <- paste("package", pkg,sep = ":") 
+  while(search_item %in% search()) { detach(search_item, unload = TRUE, character.only = TRUE) } 
+}
+```
+
+#### ______________________________________________________________________________
+
+#### **Summary of The Dataset**
+
+The dataset of choice for Project One was originally constructed by the World Health Organization (WHO) to track the health status of 193 countries across the world. The question we
+sought to answer is as follows: 
+
+**What factors affect life expectancy in individuals across the world?**
+
+The dataset includes a variety of factors that contribute to the overall health status of a country. We wanted to know what effect these factors had specifically 
+on life expectancy. An explanation of the different factors in this dataset are as follows: 
+
+  • **Country:** Country
+  
+  • **Year:** Year
+  
+  • **Status:** Developed or Developing status
+  
+  • **Life expectancy:** Life Expectancy in age
+  
+  • **Adult Mortality:** Adult Mortality Rates of both sexes (probability of dying between 15 and 60 years per 1000 population)
+  
+  • **Infant deaths:** Number of Infant Deaths per 1000 population
+  
+  • **Alcohol:** Alcohol, recorded per capita (15+) consumption (in litres of pure alcohol)
+  
+  • **Percentage expenditure:** Expenditure on health as a percentage of GDP per capita(%)
+  
+  • **Hepatitis B:** HepB immunization coverage among 1-year-olds (%)
+  
+  • **Measles:** Number of reported measles cases per 1000 population
+  
+  • **BMI:** Average Body Mass Index of entire population
+  
+  • **Under-five deaths:** Number of under-five deaths per 1000 population
+  
+  • **Polio:** Pol3 immunization coverage among 1-year-olds (%)
+  
+  • **Total expenditure:** General government expenditure on health as a percentage of total government expenditure (%)
+  
+  • **Diphtheria:** DTP3 immunization coverage among 1-year-olds (%)
+  
+  • **HIV/AIDS:** Deaths per 1 000 live births HIV/AIDS (0-4 years)
+  
+  • **GDP:** Gross Domestic Product per capita (in USD)
+  
+  • **Population:** Population of the country
+  
+  • **Thinness 10-19 years:** Prevalence of thinness among children/adolescents, age 10 - 19(%)
+  
+  • **Thinness 5-9 years:** Prevalence of thinness among children, age 5 to 9 (%)
+  
+  • **Income comp of resources:** HDI in terms of income composition of resources (index ranging from 0 to 1)
+  
+  • **Schooling:** Number of years of Schooling (years)
+
+Data Source: [Kaggle](https://www.kaggle.com/kumarajarshi/life-expectancy-who)
+
+#### ______________________________________________________________________________
+
+
+
+### Life expectancy EDA
+```{r loadData, include ="F"}
+life <- read.csv("LifeExpectancyData.csv")
+life
+```
+
+### Life expectancy distributions 
+```{r plots}
+life2 <- na.omit(life) #omit missing values 
+
+loadPkg("ggplot2")
+ggplot(life, aes(x=Life.expectancy) )+
+  geom_histogram(color="darkblue",fill="lightblue")+
+  ggtitle("Life Expectancy Histogram")+
+  xlab("Life Expectancy (Age)")
+
+qqnorm(life$Life.expectancy, main="Life Expectancy Q-Q Plot", ylab="Life Expectancy (Age)")
+
+
+#ggplot(life2, aes(x=Total.expenditure, y=Life.expectancy, fill=Total.expenditure, group = 1)) + geom_boxplot() + scale_fill_brewer(palette="Spectral") + ggtitle("Life Expectancy vs. Total Expenditure") + ylab("Life Expectancy") + xlab("Total Expenditure ($)") 
+
+plot(life$Life.expectancy, life$Total.expenditure, main=" Govt Expenditure on Healthcare(y) vs Life Expectancy (x) ",
+   xlab="Life Expectancy ", ylab="% Healthcare Expenditure (out of total spending) ", pch=19) + 
+  abline(lm(life$Total.expenditure~life$Life.expectancy), col="red") # regression line (y~x)
+
+ggplot(life, aes(x=factor(Year), y=Life.expectancy))+
+  geom_boxplot() + 
+  facet_wrap(~Status) + 
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+### Descriptive Statistics
+```{r stats}
+#sapply(life, mean, na.rm=TRUE) # excluding missing values
+#sapply(life, sd)
+summary(life)
+```
+
+
+#### **Initial Correlation/Chi-Square Test**
+
+  To determine the relationship between numerical variables and 'Life Expectancy', a correlation was performed. The variables "Country" and "Status" were removed prior to perforing the corration, as they are factor variables and will be addressed later. Additionally, rows that were blank or had "NA" in them were ignored, as array sized must be equivalent to perform a correlation between variables. 
+
+  The resulting correlation matrix can be viewed below. It was found that the top 5 variables correlated with 'Life Expectancy' were 'Adult Mortality', 'Income Composition of Resources', 'Schooling', 'HIV/AIDS', and 'BMI'. The correlation coefficients for these variables were -0.70, 0.73, 0.75, -0.56, and 0.57, respectively. The negative value in front of the correlations for 'Adult Mortality' and 'HIV/AIDS' indicates that as the life expectancy increases, the adult mortality and incidence of AIDS decreases. It is important to note that the variable 'Population' had virtually no correlation with 'Life Expectancy', as it had a correlation coefficient of -0.02. 
+
+```{r correlation, include=T}
+library(dplyr)
+sapply(life, class) #look at the class of each variables
+life_nofactor = select(life, -c(Country, Status)) #remove the factor variables
+cor_life=cor(life_nofactor,use = "complete.obs") #create correlation matrix
+library(corrplot)
+corrplot(cor_life, type="lower") #plot correlation matrix
+ggplot(life, aes(x=GDP, y=percentage.expenditure)) + 
+  geom_point() + 
+  geom_smooth()
+ggplot(life, aes(x=HIV.AIDS, y=Life.expectancy)) + 
+  geom_point() + 
+  geom_smooth()
+ggplot(life, aes(x=Schooling, y=Life.expectancy)) + 
+  geom_point() + 
+  geom_smooth()
+
+```
+
+  The relationship between 'Adult Mortality' and 'Life Expectancy' was ignored for the duration of this EDA due to the obviousness lack of information that would be gathered from further exloring this. It is redundent information that as the adult mortality rate increased, the life expectancy would decrease. The other variables, however, are explored in further detail. 
+
+
+### Significance of Correlated Variables
+
+  The level of significance for all numerical variables was found using the cor.test function. All numerical variables were found to be significantly correlated to life expectancy except population, which had a correlation coefficient of -0.02 and a p-value of 0.30. ALl other numerical variables had p-values of less than 2x10e-16. A table of the correlation coefficients and p-values is shown in the table below. 
+
+```{r correlation significance, results=TRUE}
+#Correlation test of significance for correlation coefficients above plus/minus 0.5
+cortest_income = cor.test(life$Income.composition.of.resources, life$Life.expectancy, method="pearson")
+cortest_school = cor.test(life$Schooling, life$Life.expectancy, method="pearson")
+cortest_BMI = cor.test(life$BMI, life$Life.expectancy, method="pearson")
+cortest_AIDS = cor.test(life$HIV.AIDS, life$Life.expectancy, method="pearson")
+#Those with correlations between plus/minus 0.4 and 0.5
+cortest_GDP = cor.test(life$GDP, life$Life.expectancy, method="pearson")
+cortest_Alcohol = cor.test(life$Alcohol, life$Life.expectancy, method="pearson")
+cortest_expend = cor.test(life$percentage.expenditure, life$Life.expectancy, method="pearson")
+cortest_thin19 = cor.test(life$thinness..1.19.years, life$Life.expectancy, method="pearson")
+cortest_thin5 = cor.test(life$thinness.5.9.years, life$Life.expectancy, method="pearson")
+#Those with correlations between plus/minus 0.3 and 0.4
+cortest_polio = cor.test(life$Polio, life$Life.expectancy, method="pearson")
+cortest_dip = cor.test(life$Diphtheria, life$Life.expectancy, method="pearson")
+#Those with correlations below 0.3
+cortest_infantdeath = cor.test(life$infant.deaths, life$Life.expectancy, method="pearson")
+cortest_hep = cor.test(life$Hepatitis.B, life$Life.expectancy, method="pearson")
+cortest_measles = cor.test(life$Measles, life$Life.expectancy, method="pearson")
+cortest_under5 = cor.test(life$under.five.deaths, life$Life.expectancy, method="pearson")
+cortest_totalexpend = cor.test(life$Total.expenditure, life$Life.expectancy, method="pearson")
+cortest_pop = cor.test(life$Population, life$Life.expectancy, method="pearson")
+cortest_year = cor.test(life$Year, life$Life.expectancy, method="pearson")
+
+#Table to check and use to make nice looking table, since kable won't use scientific notation
+cor_table_raw = matrix(c(cortest_income$estimate, cortest_income$p.value, cortest_school$estimate, cortest_school$p.value, cortest_BMI$estimate, cortest_BMI$p.value, cortest_AIDS$estimate, cortest_AIDS$p.value, cortest_GDP$estimate, cortest_GDP$p.value, cortest_Alcohol$estimate, cortest_Alcohol$p.value, cortest_expend$estimate, cortest_expend$p.value, cortest_thin19$estimate, cortest_thin19$p.value, cortest_thin5$estimate, cortest_thin5$p.value, cortest_polio$estimate, cortest_polio$p.value, cortest_dip$estimate, cortest_dip$p.value, cortest_infantdeath$estimate, cortest_infantdeath$p.value, cortest_hep$estimate, cortest_hep$p.value, cortest_measles$estimate, cortest_measles$p.value, cortest_under5$estimate, cortest_under5$p.value, cortest_totalexpend$estimate, cortest_totalexpend$p.value, cortest_pop$estimate, cortest_pop$p.value, cortest_year$estimate, cortest_year$p.value), ncol=2, byrow=TRUE)
+colnames(cor_table_raw)=c("Correlation Coefficient", "P-value")
+rownames(cor_table_raw)=c("Income", "Schooling", "BMI", "AIDS", "GDP", "Alcohol", "Gov Expend", "Thinnest to 19", "Thinness to Age 5", "Polio", "Diptheria", "Infant Death", "HepB", "Measles", "Death Under 5", "Total Expenditure", "Population", "Year")
+
+cor_table_raw
+```
+
+
+
+```{r correlation significance table, results='asis'}
+#Correlation of variables table- This section is just to use a nicer table for the RMarkdown version. It doesn't let you do scientific notation as in the above, so I manually placed these in. 
+cor_table = matrix(c("0.73", "<2e-16", "0.75", "<2e-16", "0.57", "<2e-16", "-0.56", "<2e-16", "0.46", "<2e-16", "0.40", "<2e-16", "0.38", "<2e-16", "-0.48", "<2e-16", "-0.47", "<2e-16", "0.47", "<2e-16", "0.48", "<2e-16", "-0.20", "<2e-16", "0.26", "<2e-16", "-0.16", "<2e-16", "-0.22", "<2e-16", "0.22", "<2e-16", "-0.02", "0.30", "0.17", "<2e-16"), ncol=2, byrow=TRUE)
+colnames(cor_table)=c("Correlation Coefficient", "P-value")
+rownames(cor_table)=c("Income", "Schooling", "BMI", "AIDS", "GDP", "Alcohol", "Gov Expend", "Thinness to Age 19", "Thinness to Age 5", "Polio", "Diptheria", "Infant Death", "HepB", "Measles", "Death Under 5", "Total Expenditure", "Population", "Year")
+
+library(knitr)
+kable(cor_table, caption="Test of Significant Correlation Results")
+
+ 
+```
+
+### Association of Life Expectancy with Factor Variables
+
+  The factor variables that were removed earlier were 'Country' and 'Status'. The 'Status' was that of coutries that were 'Developed' and 'Developing'. To determine whether the a country's life expectancy was different for 'Developed' versus 'Developing' countries, a t-test was performed. It was found that the average life expectancy in the developed countries was 78.7 years of age and that in the developing countries was 67.7 years. The t-test results found the mean life expectancy to be significantly different, with a p-value of less than 2e-16.
+  To visually discern the difference in life expectancies, histograms (one showing actual counts and the other showing proportions) were generated. As can be seen, the life expectancy of those in developed countries are all grouped toward the higher (right-hand) side of the histogram, while those in developong countries are, on average, much lower. 
+
+``` {r factor variables, echo=TRUE}
+#summary(life)
+life_developed=na.omit(subset(life, Status=='Developed')) #subset of countries that are Developed
+life_developing=na.omit(subset(life, Status=='Developing')) #subset of countries that are Developing
+
+#Life expectancy of Developed/Developing are different as p<<0.05
+mean_life_developed = mean(life_developed$Life.expectancy)
+mean_life_developing = mean(life_developing$Life.expectancy)
+t_life_developed = t.test(x=life_developed$Life.expectancy, conf.level=0.95 )
+t_life_developing= t.test(x=life_developing$Life.expectancy, conf.level=0.95 )
+t_life_developed$conf.int
+t_life_developing$conf.int
+mean_life_developed
+mean_life_developing
+ttest_status = t.test(life_developed$Life.expectancy, life_developing$Life.expectancy)
+
+#make overlaying histograms of the two subgroups aes(x = rank, y = gpa, fill = admit)
+# First distribution
+hist(life_developing$Life.expectancy, col=rgb(1,0,0,0.5), xlab="Life Expectancy", 
+     ylab="Count", main="Life Expectancy of Developed vs Developing Countries-Actual Count" )
+# Second with add=T to plot on top
+hist(life_developed$Life.expectancy, col=rgb(0,0,1,0.5), add=T)
+# Add legend
+legend("topright", legend=c("Developing","Developed"), col=c(rgb(1,0,0,0.5), 
+     rgb(0,0,1,0.5)), pt.cex=2, pch=15 )
+
+#Histogram Plot of Developed vs Developing using relative frequency
+#make overlaying histograms of the two subgroups aes(x = rank, y = gpa, fill = admit)
+# First distribution
+hist(life_developing$Life.expectancy, col=rgb(1,0,0,0.5), xlab="Life Expectancy", 
+     ylab="Proportion", main="Life Expectancy of Developed vs Developing Countries-Relative Frequencies" , freq=F, 
+     ylim = c(0,0.15))
+# Second with add=T to plot on top
+hist(life_developed$Life.expectancy, col=rgb(0,0,1,0.5), add=T, freq=F)
+# Add legend
+legend("topright", legend=c("Developing","Developed"), col=c(rgb(1,0,0,0.5), 
+     rgb(0,0,1,0.5)), pt.cex=2, pch=15 )
+
+
+#t-test of developed vs developing of variables found to have significantly high correlations with Life Expectancy
+ttest_income = t.test(life_developed$Income.composition.of.resources, life_developing$Income.composition.of.resources)
+ttest_school = t.test(life_developed$Schooling, life_developing$Schooling)
+ttest_BMI = t.test(life_developed$BMI, life_developing$BMI)
+ttest_AIDS = t.test(life_developed$HIV.AIDS, life_developing$HIV.AIDS)
+
+
+ttest_income
+ttest_school
+ttest_BMI
+ttest_AIDS
+
+
+```
+
+### Difference in Variable Between Developed and Developing Countries
+
+
+  
+
+```{r t-test table, results='asis'}
+#Correlation of variables table
+ttest_table = matrix(c("0.836", "0.596", "<2e-16", "0.15.6", "11.5", "<2e-16", "52.3", "35.7", "<2e-16", "0.10", "2.31", "<2e-16"), ncol=3, byrow=TRUE)
+colnames(ttest_table)=c("Mean Value Developed", "Mean Value Developing", "P-value")
+rownames(ttest_table)=c("Income level, from 0 to 1", "Years of Schooling", "BMI", "AIDS, per 1000 people")
+
+library(knitr)
+kable(ttest_table, caption="T-test Between Developed and Developing Countries for Variables Highly Correlated to Life Expectancy")
+
+```
+
+### Is Life Expectancy Increasing?
+
+```{r Over the Years, include=T}
+ggplot(life, aes(x=Year, y=Life.expectancy, col=Status))+
+  geom_point() +
+  geom_smooth() + 
+  facet_wrap(~Status)
+
+```
+
+# Subsetting and Pre-processing
+
+```{r subsetting, include=T}
+data <- read.csv("lifeexpectancydata.csv")
+
+data_world_map <- data.frame(data)
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'USA')
+data_world_map$Country[data_world_map$Country == 'United States of America'] <- 'USA'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'UK')
+data_world_map$Country[data_world_map$Country == 'United Kingdom of Great Britain and Northern Ireland'] <- 'UK'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'Russia')
+data_world_map$Country[data_world_map$Country == 'Russian Federation'] <- 'Russia'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'Bolivia')
+data_world_map$Country[data_world_map$Country == 'Bolivia (Plurinational State of)'] <- 'Bolivia'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'Brunei')
+data_world_map$Country[data_world_map$Country == 'Brunei Darussalam'] <- 'Brunei'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'Czech Republic')
+data_world_map$Country[data_world_map$Country == 'Czechia'] <- 'Czech Republic'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'North Korea')
+data_world_map$Country[data_world_map$Country == 'Democratic People\'s Republic of Korea'] <- 'North Korea'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'Iran')
+data_world_map$Country[data_world_map$Country == 'Iran (Islamic Republic of)'] <- 'Iran'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'Laos')
+data_world_map$Country[data_world_map$Country == 'Lao People\'s Democratic Republic'] <- 'Laos'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'Micronesia')
+data_world_map$Country[data_world_map$Country == 'Micronesia (Federated States of)'] <- 'Micronesia'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'South Korea')
+data_world_map$Country[data_world_map$Country == 'Republic of Korea'] <- 'South Korea'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'Moldova')
+data_world_map$Country[data_world_map$Country == 'Republic of Moldova'] <- 'Moldova'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'Saint Vincent')
+data_world_map$Country[data_world_map$Country == 'Saint Vincent and the Grenadines'] <- 'Saint Vincent'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'Syria')
+data_world_map$Country[data_world_map$Country == 'Syrian Arab Republic'] <- 'Syria'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'Macedonia')
+data_world_map$Country[data_world_map$Country == 'The former Yugoslav republic of Macedonia'] <- 'Macedonia'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'Tanzania')
+data_world_map$Country[data_world_map$Country == 'United Republic of Tanzania'] <- 'Tanzania'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'Venezuela')
+data_world_map$Country[data_world_map$Country == 'Venezuela (Bolivarian Republic of)'] <- 'Venezuela'
+levels(data_world_map$Country) <- c(levels(data_world_map$Country), 'Vietnam')
+data_world_map$Country[data_world_map$Country == 'Viet Nam'] <- 'Vietnam'
+
+two_thousand <- subset(x=data_world_map, data_world_map$Year==2000)
+```
+
+# Combining and plotting LE data from the year 2000
+
+```{r combining_2000, include=T}
+loadPkg("ggmap")
+loadPkg("tidyverse")
+loadPkg("dplyr")
+
+world_data <- map_data('world')
+
+combined_2000 <- world_data[two_thousand$Country %in% two_thousand$Country, ]
+combined_2000$value <- two_thousand$Life.expectancy[match(combined_2000$region, two_thousand$Country)]
+
+countries <- unique(combined_2000$Country)
+cdf <- data.frame(label1=countries)
+for(i in cdf){
+  combined_2000$value <- ifelse(combined_2000$Country %in% cdf$label1[i], (two_thousand$Life.expectancy), combined_2000$value)
+}
+```
+
+```{r plotting_2000, include=T}
+ggplot(data=combined_2000, aes(x=long, y=lat, group=group, fill=value)) +
+  geom_polygon(colour="white") +
+  scale_fill_continuous(low="blue",
+                        high="orange",
+                        guide="colorbar") +
+  theme_bw() +
+  labs(fill="Life Expectancy", title="Life Expectancy Across the World (2000)", x="", y="") +
+  scale_y_continuous(breaks=c()) +
+  scale_x_continuous(breaks=c()) +
+  theme(panel.border=element_blank())
+```
+
+# Combining and plotting LE data from the year 2005
+
+```{r combining_2005, include=T}
+loadPkg("ggmap")
+loadPkg("tidyverse")
+loadPkg("dplyr")
+
+two_thousand_five <- subset(x=data_world_map, data_world_map$Year==2005)
+
+combined_2005 <- world_data[two_thousand_five$Country %in% two_thousand_five$Country, ]
+combined_2005$value <- two_thousand_five$Life.expectancy[match(combined_2005$region, two_thousand_five$Country)]
+
+countries <- unique(combined_2005$Country)
+cdf <- data.frame(label1=countries)
+for(i in cdf){
+  combined_2005$value <- ifelse(combined_2005$Country %in% cdf$label1[i], (two_thousand_five$Life.expectancy), combined_2005$value)
+}
+```
+
+```{r plotting_2005, include=T}
+ggplot(data=combined_2005, aes(x=long, y=lat, group=group, fill=value)) +
+  geom_polygon(colour="white") +
+  scale_fill_continuous(low="blue",
+                        high="orange",
+                        guide="colorbar") +
+  theme_bw() +
+  labs(fill="Life Expectancy", title="Life Expectancy Across the World (2005)", x="", y="") +
+  scale_y_continuous(breaks=c()) +
+  scale_x_continuous(breaks=c()) +
+  theme(panel.border=element_blank())
+```
+
+# Combining and plotting LE data from the year 2010
+
+```{r combining_2010, include=T}
+loadPkg("ggmap")
+loadPkg("tidyverse")
+loadPkg("dplyr")
+
+two_thousand_ten <- subset(x=data_world_map, data_world_map$Year==2010)
+
+combined_2010 <- world_data[two_thousand_ten$Country %in% two_thousand_ten$Country, ]
+combined_2010$value <- two_thousand_ten$Life.expectancy[match(combined_2010$region, two_thousand_ten$Country)]
+
+countries <- unique(combined_2010$Country)
+cdf <- data.frame(label1=countries)
+for(i in cdf){
+  combined_2010$value <- ifelse(combined_2010$Country %in% cdf$label1[i], (two_thousand_ten$Life.expectancy), combined_2010$value)
+}
+```
+
+```{r plotting_2010, include=T}
+ggplot(data=combined_2010, aes(x=long, y=lat, group=group, fill=value)) +
+  geom_polygon(colour="white") +
+  scale_fill_continuous(low="blue",
+                        high="orange",
+                        guide="colorbar") +
+  theme_bw() +
+  labs(fill="Life Expectancy", title="Life Expectancy Across the World (2010)", x="", y="") +
+  scale_y_continuous(breaks=c()) +
+  scale_x_continuous(breaks=c()) +
+  theme(panel.border=element_blank())
+```
+# Combining and plotting LE data from the year 2015
+
+```{r combining_2015, include=T}
+loadPkg("ggmap")
+loadPkg("tidyverse")
+loadPkg("dplyr")
+
+two_thousand_fifteen <- subset(x=data_world_map, data_world_map$Year==2015)
+
+combined_2015 <- world_data[two_thousand_fifteen$Country %in% two_thousand_fifteen$Country, ]
+combined_2015$value <- two_thousand_fifteen$Life.expectancy[match(combined_2015$region, two_thousand_fifteen$Country)]
+
+countries <- unique(combined_2015$Country)
+cdf <- data.frame(label1=countries)
+for(i in cdf){
+  combined_2015$value <- ifelse(combined_2015$Country %in% cdf$label1[i], (two_thousand_fifteen$Life.expectancy), combined_2015$value)
+}
+```
+
+```{r plotting_2015, include=T}
+ggplot(data=combined_2015, aes(x=long, y=lat, group=group, fill=value)) +
+  geom_polygon(colour="white") +
+  scale_fill_continuous(low="blue",
+                        high="orange",
+                        guide="colorbar") +
+  theme_bw() +
+  labs(fill="Life Expectancy", title="Life Expectancy Across the World (2015)", x="", y="") +
+  scale_y_continuous(breaks=c()) +
+  scale_x_continuous(breaks=c()) +
+  theme(panel.border=element_blank())
+```
+
+# Subsetting and Pre-processing for Mean Life Expectancy
+
+```{r aggregates, include=T}
+loadPkg("dplyr")
+
+data_le_means <- data.frame(data)
+
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'USA')
+data_le_means$Country[data_le_means$Country == 'United States of America'] <- 'USA'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'UK')
+data_le_means$Country[data_le_means$Country == 'United Kingdom of Great Britain and Northern Ireland'] <- 'UK'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'Russia')
+data_le_means$Country[data_le_means$Country == 'Russian Federation'] <- 'Russia'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'Bolivia')
+data_le_means$Country[data_le_means$Country == 'Bolivia (Plurinational State of)'] <- 'Bolivia'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'Brunei')
+data_le_means$Country[data_le_means$Country == 'Brunei Darussalam'] <- 'Brunei'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'Czech Republic')
+data_le_means$Country[data_le_means$Country == 'Czechia'] <- 'Czech Republic'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'North Korea')
+data_le_means$Country[data_le_means$Country == 'Democratic People\'s Republic of Korea'] <- 'North Korea'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'Iran')
+data_le_means$Country[data_le_means$Country == 'Iran (Islamic Republic of)'] <- 'Iran'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'Laos')
+data_le_means$Country[data_le_means$Country == 'Lao People\'s Democratic Republic'] <- 'Laos'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'Micronesia')
+data_le_means$Country[data_le_means$Country == 'Micronesia (Federated States of)'] <- 'Micronesia'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'South Korea')
+data_le_means$Country[data_le_means$Country == 'Republic of Korea'] <- 'South Korea'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'Moldova')
+data_le_means$Country[data_le_means$Country == 'Republic of Moldova'] <- 'Moldova'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'Saint Vincent')
+data_le_means$Country[data_le_means$Country == 'Saint Vincent and the Grenadines'] <- 'Saint Vincent'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'Syria')
+data_le_means$Country[data_le_means$Country == 'Syrian Arab Republic'] <- 'Syria'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'Macedonia')
+data_le_means$Country[data_le_means$Country == 'The former Yugoslav republic of Macedonia'] <- 'Macedonia'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'Tanzania')
+data_le_means$Country[data_le_means$Country == 'United Republic of Tanzania'] <- 'Tanzania'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'Venezuela')
+data_le_means$Country[data_le_means$Country == 'Venezuela (Bolivarian Republic of)'] <- 'Venezuela'
+levels(data_le_means$Country) <- c(levels(data_le_means$Country), 'Vietnam')
+data_le_means$Country[data_le_means$Country == 'Viet Nam'] <- 'Vietnam'
+
+le_na = subset(data_le_means, is.na(Life.expectancy))
+le_clean = anti_join(data_le_means, le_na)
+
+country_and_status <- le_clean %>% group_by(Country, Status) %>% summarise(mean_le = mean(Life.expectancy))
+```
+
+# Combining and Plotting Mean LE across all years
+
+```{r combining_means, include=T}
+loadPkg("ggmap")
+loadPkg("tidyverse")
+loadPkg("dplyr")
+
+world_data <- map_data('world')
+
+combined_means <- world_data[country_and_status$Country %in% country_and_status$Country, ]
+combined_means$value <- country_and_status$mean_le[match(combined_means$region, country_and_status$Country)]
+
+countries <- unique(combined_means$Country)
+cdf <- data.frame(label1=countries)
+for(i in cdf){
+  combined_means$value <- ifelse(combined_means$Country %in% cdf$label1[i], (country_and_status$mean_le), combined_means$value)
+}
+```
+
+```{r plotting_mean_le, include=T}
+ggplot(data=combined_means, aes(x=long, y=lat, group=group, fill=value)) +
+  geom_polygon(colour="white") +
+  scale_fill_continuous(low="blue",
+                        high="orange",
+                        guide="colorbar") +
+  theme_bw() +
+  labs(fill="Life Expectancy", title="Mean Life Expectancy Across the World (2000-2015)", x="", y="") +
+  scale_y_continuous(breaks=c()) +
+  scale_x_continuous(breaks=c()) +
+  theme(panel.border=element_blank())
+```
